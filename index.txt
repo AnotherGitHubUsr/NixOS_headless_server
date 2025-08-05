@@ -1,0 +1,17 @@
+index.txt
+---------
+- flake.nix:            Entry, version pin, imports, all channels, system/inputs locked.
+- README.md:            Setup, install, recovery, agenix, Docker/Incus, tokens, recovery, NAS, secret rotation.
+- .gitignore:           Block plaintext secrets/keys, enforce best practices.
+- .gitattributes:       filter=crypt for secrets/credentials/keys.
+- configuration.nix:    Imports all modular configs below.
+- users.nix:            User, SSH, agenix password, fallback pubkey, sudo, shell setup, instructions for switching shells, password management.
+- disk.nix:             Disk (disko), Pratchett names, mergerfs, ZFS, bcache, iscsi, future disks commented, storage docs.
+- pkgs.nix:             Package set, stable/unstable, hardware drivers, flatpak/wine, docker/incus, comments.
+- network.nix:          Hostname, timezone, NTS NTP, enp4s0, static IP, DNS, subnet, bridges.
+- security.nix:         agenix, crowdsec, fail2ban, clamav, iptables, docker/incus/firewall.
+- monitoring.nix:       SMART/fsck/scrub/AV/log check timers/services, log location, gotify/telegram (commented).
+- gitops.nix:           /etc/nixos GitHub push, agenix token, safe conflict handling.
+- secrets.nix:          All secret token handling for external services, with instructions for users.
+- kernel.nix:           Kernel version, module pinning, hardware flags; easily switch between stable and latest kernels.
+- secrets/, credentials/, keys/:    Strictly encrypted, never in repo, only via agenix.

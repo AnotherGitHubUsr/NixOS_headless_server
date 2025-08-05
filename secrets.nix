@@ -1,6 +1,7 @@
 { config, pkgs, ... }:
 
 let
+  # Directory containing the secret files
   secretsDir = ./secrets;
 
   # List of all secret files to check or create
@@ -13,47 +14,6 @@ let
     "nixuser-password.hash.age"
     "tailscale-authkey.age"
   ];
-
-  ensureSecretsScript = pkgs.writeShellScript "ensure-secrets.sh" ''
-    set -eu
-
-    # --- Ensure age identity exists ---
-    AGE_KEY_FILE="${secretsDir}/key.txt"
-    AGE_RECIPIENT_FILE="${secretsDir}/public.age"
-
-    # If neither key nor public recipient exists, generate a new age keypair
-    if [ ! -f "$AGE_KEY_FILE" ] && [ ! -f "$AGE_RECIPIENT_FILE" ]; then
-      echo "No age key or public recipient found, generating new age identity in $AGE_KEY_FILE"
-      mkdir -p "${secretsDir}"
-      age-keygen -o "$AGE_KEY_FILE"
-      age-keygen -y "$AGE_KEY_FILE" > "$AGE_RECIPIENT_FILE"
-      chmod 0400 "$AGE_KEY_FILE"
-      chmod 0444 "$AGE_RECIPIENT_FILE"
-      echo "A new age identity was generated. BACK UP $AGE_KEY_FILE securely! Anyone with $AGE_KEY_FILE can decrypt your secrets."
-    fi
-
-    # Prefer using the private key, but if only public recipient, use that
-    if [ -f "$AGE_KEY_FILE" ]; then
-      AGE_RECIPIENT_OPT="-i $AGE_KEY_FILE"
-    else
-      AGE_RECIPIENT_OPT="-r $(cat $AGE_RECIPIENT_FILE)"
-    fi
-
-    # --- Ensure all declared secrets exist, create with 'missingpassword' if missing ---
-    for f in ${builtins.toString secretFiles}; do
-      secretPath="${secretsDir}/$f"
-      if [ ! -f "$secretPath" ]; then
-        echo "Secret $secretPath missing, creating with dummy value 'missingpassword'"
-        if echo "$f" | grep -q "hash"; then
-          hashed=$(openssl passwd -6 "missingpassword")
-          echo "$hashed" | age -e $AGE_RECIPIENT_OPT -o "$secretPath"
-        else
-          echo "missingpassword" | age -e $AGE_RECIPIENT_OPT -o "$secretPath"
-        fi
-        chmod 0400 "$secretPath"
-      fi
-    done
-  '';
 in
 {
   # systemd oneshot: Ensures age identity and all secrets exist before agenix/service start
@@ -63,10 +23,7 @@ in
     before = [ "agenix.service" ];
     serviceConfig = {
       Type = "oneshot";
-      # Use bash as the interpreter for the activation script (fixes issues with sh vs bash)
-      interpreter = "${pkgs.bash}/bin/bash";
-      # ExecStart is the literal script (not a path), so interpreter is respected.
-      ExecStart = ensureSecretsScript;
+      ExecStart = "${pkgs.bash}/bin/bash /etc/nixos/bash_shells/ensure-secrets.sh";
       RemainAfterExit = true;
       User = "root";
     };

@@ -1,50 +1,35 @@
 { config, pkgs, ... }:
 
 {
-  # Secret for nixuser password (file is created by ensure-secrets systemd service)
-  age.secrets.nixuser-password = {
-    file = ./secrets/nixuser-password.hash.age;
-    mode = "0440";
-    owner = "root";
-    group = "root";
-  };
+  # All secret management (age identity, secret provisioning) is handled by ensure-secrets.service.
+  # Any security or service module should depend on secrets being present at their /run/agenix/ paths.
 
-  services.openssh = {
-    enable = true;
-    passwordAuthentication = false;
-    permitRootLogin = "no";
-  };
+  # Fail2ban example: enables basic SSH and service brute-force protection
+  services.fail2ban.enable = true;
 
+  # ClamAV: enable for automated virus scanning
+  services.clamav.daemon.enable = true;
+  services.clamav.updater.enable = true;
+
+  # Firewall: basic IPv4/IPv6 filtering (adjust as needed)
+  networking.firewall.enable = true;
+  networking.firewall.allowedTCPPorts = [ 22 80 443 ]; # SSH/HTTP/HTTPS
+  networking.firewall.allowedUDPPorts = [ 53 ];        # DNS
+
+  # Crowdsec: behavioral detection (adjust/configure as required)
   services.crowdsec = {
     enable = true;
-    # NOTE: Crowdsec/iptables may block container traffic, see README and below!
-  };
-  services.fail2ban = { enable = true; };
-  services.clamav.daemon.enable = true;
-
-  networking.firewall = {
-    enable = true;
-    allowedTCPPorts = [ 22 80 443 ];
-    allowedUDPPorts = [ 123 ];
-    extraCommands = ''
-      # Only allow NAS/Nixserver comms on naslink, drop others
-      iptables -A INPUT  -s 10.250.250.250/32 -d 10.250.250.249/32 -j ACCEPT
-      iptables -A OUTPUT -s 10.250.250.249/32 -d 10.250.250.250/32 -j ACCEPT
-      iptables -A INPUT  -d 10.250.250.249/32 ! -s 10.250.250.250/32 -j DROP
-      iptables -A OUTPUT -s 10.250.250.249/32 ! -d 10.250.250.250/32 -j DROP
-    '';
-    # This will restrict /30 subnet to only Nixserver/NAS communication.
+    # Ensure crowdsec doesn't conflict with fail2ban or docker.
+    postOverflowsAction = "true"; # Prevents failure on crowdsec errors.
   };
 
-  # Docker/incus mitigation: Add rules to allow container bridges as needed,
-  # especially if containers need external network access or if Crowdsec/Fail2ban 
-  # bouncers block container traffic.
-  # See https://crowdsec.net/faq/docker/
+  # iptables-persistent (if needed)
+  # systemd.services.iptables-persistent = { ... };
 
-  # --- COMMENTARY FOR USERS ---
-  # - The ensure-secrets systemd service (see secrets.nix) makes sure age keys and all declared secret files exist,
-  #   preventing failed builds. If a secret or key is missing, it is generated automatically.
-  #    ! ! ! Make sure to change the password. If it was missing it is set to "missingpassword" ! ! !
-  # - To change or rotate secrets, use 'age' with ./secrets/public.age as described in secrets.nix.
-  # - Always BACK UP your private key ./secrets/key.txt securely!
+  # If you have security services that require secrets, ensure their systemd units use:
+  # after = [ "ensure-secrets.service" ];
+
+  # Optionally, ensure all dependent services have
+  # environment.variables or configuration files that reference secrets at:
+  #   /run/agenix/github-token, /run/agenix/traefik-auth, etc.
 }

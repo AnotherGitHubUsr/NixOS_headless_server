@@ -28,6 +28,7 @@ All of this is very much personal. It is tailored to my setup and what I want (n
         > *Note: NixOS only uses /etc/nixos at build. If you have a preexisting configuration/secrets/etc make sure to back them up beforehand*
    - `git clone https://github.com/AnotherGitHubUsr/NixOS_headless_server.git /etc/nixos`
    - `cd /etc/nixos`
+   - `sudo chmod 750 /etc/nixos/bash_shells/fix-shell-permissions.sh && sudo /etc/nixos/bash_shells/fix-shell-permissions.sh`
    - run `sudo nixos-install --flake .#nixserver`.
 
 4. **GitHub Push:**

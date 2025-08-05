@@ -1,5 +1,3 @@
-# Disk (disko), Pratchett names, mergerfs, ZFS, bcache, iscsi, future disks commented, storage docs.
-
 { config, pkgs, ... }:
 
 let
@@ -68,6 +66,15 @@ in
     };
   };
 
+  # iSCSI configuration: These devices come from your NAS and must be discovered at boot.
+  # Instructions:
+  #   1. On your NAS, export block devices (LUNs) via iSCSI.
+  #   2. On this host, after `services.open-iscsi` is enabled and running, check device paths with:
+  #        ls -l /dev/disk/by-path/ | grep iscsi
+  #      Example output:
+  #        /dev/disk/by-path/ip-10.250.250.250:iscsi-0-0-0-0-lun-0 -> ../../sdX
+  #   3. Add those device paths to the bcachefs pool below.
+
   # --- iSCSI configuration for NAS block devices ---
   # What this does: Connects at boot, handles multipath and timeouts for reliability.
   services.open-iscsi = {
@@ -90,6 +97,7 @@ in
   # What this does: SSDs and iSCSI HDDs form a unified bcachefs pool. Writeback cache set to 200 GiB.
   # Write cache is flushed to disk daily at 11am, or if >80% full.
   fileSystems."/mnt/bcachefs" = {
+    # Below, change the name/ip/path to the iSCSI devices as needed
     device = "/dev/nvme0n1:/dev/nvme1n1:/dev/nvme2n1:/dev/nvme3n1:/dev/disk/by-path/ip-10.250.250.250:iscsi-0-0-0-0-lun-0:/dev/disk/by-path/ip-10.250.250.250:iscsi-0-0-0-1-lun-0";
     fsType = "bcachefs";
     options = [
@@ -111,7 +119,7 @@ in
     description = "Flush bcachefs write cache to disk";
     serviceConfig = {
       Type = "oneshot";
-      ExecStart = "${pkgs.bcachefs-tools}/bin/bcachefs fsck --flush /mnt/bcachefs";
+      ExecStart = "${pkgs.bash}/bin/bash /etc/nixos/bash_shells/bcachefs-flush.sh";
     };
   };
   systemd.timers.bcachefs-flush = {
@@ -128,16 +136,7 @@ in
     description = "Flush bcachefs write cache if above 80% full";
     serviceConfig = {
       Type = "oneshot";
-      ExecStart = pkgs.writeShellScript "bcachefs-flush-threshold" ''
-        stats="$(${pkgs.bcachefs-tools}/bin/bcachefs show-stats /mnt/bcachefs | grep 'writeback')"
-        used=$(echo "$stats" | awk '{print $3}')
-        max=214748364800
-        threshold=$((max * 80 / 100))
-        if [ "$used" -ge "$threshold" ]; then
-          echo "Writeback cache usage ($used) above 80% ($threshold), flushing..."
-          ${pkgs.bcachefs-tools}/bin/bcachefs fsck --flush /mnt/bcachefs
-        fi
-      '';
+      ExecStart = "${pkgs.bash}/bin/bash /etc/nixos/bash_shells/bcachefs-flush-threshold.sh";
     };
   };
   systemd.timers.bcachefs-flush-threshold = {
@@ -151,60 +150,35 @@ in
 
   # --- Discworld disk name enforcement for disko safety ---
   # What this does: Prevents accidental formatting of disks without Discworld names.
-  system.activationScripts."00-check-discworld-disknames" = {
-    text = ''
-      approved=(${toString allDiscworldDiskNames})
-      disklabels=$(lsblk -dno LABEL | grep -v '^$')
-      not_approved=()
-      for label in $disklabels; do
-        ok=0
-        for name in "${approved[@]}"; do
-          if [[ "$label" == "$name" ]]; then ok=1; break; fi
-        done
-        if [[ "$ok" == "0" ]]; then
-          not_approved+=("$label")
-        fi
-      done
-
-      if [ "${#not_approved[@]}" -ne 0 ]; then
-        echo "WARNING: The following disks do NOT use approved Discworld names:"
-        printf '  - %s\n' "${not_approved[@]}"
-        echo "These disks are eligible for formatting according to disko config."
-      else
-        echo "All disks use approved Discworld names. No unintended formatting will occur."
-      fi
-    '';
-    interpreter = "${pkgs.bash}/bin/bash";
-  };
+  system.activationScripts."00-check-discworld-disknames" = ''
+    ${pkgs.bash}/bin/bash /etc/nixos/bash_shells/check-discworld-disknames.sh
+  '';
 
   # --- Storage map generation for operator visibility ---
   # What this does: Documents device, label, size, FS, UUIDs/partuuids for all known block devices.
-  system.activationScripts."01-generate-storage-map" = {
-    text = ''
-      (
-        echo "# Dynamic Disk Map (auto-generated)"
-        echo "# Device   Label         Size      FSType    UUID                                 PARTUUID"
-        for dev in /dev/sd* /dev/nvme* /dev/disk/by-path/ip-*; do
-          [ -b "$dev" ] || continue
-          label=$(lsblk -ndo LABEL "$dev" | head -n1)
-          size=$(lsblk -ndo SIZE "$dev" | head -n1)
-          fstype=$(lsblk -ndo FSTYPE "$dev" | head -n1)
-          uuid=$(blkid -s UUID -o value "$dev" 2>/dev/null || echo "-")
-          partuuid=$(blkid -s PARTUUID -o value "$dev" 2>/dev/null || echo "-")
-          printf "%-50s %-13s %-9s %-8s %-36s %-36s\n" "$dev" "$label" "$size" "$fstype" "$uuid" "$partuuid"
-          for part in $(lsblk -lnpo NAME "$dev" | tail -n +2); do
-            label=$(lsblk -ndo LABEL "$part" | head -n1)
-            size=$(lsblk -ndo SIZE "$part" | head -n1)
-            fstype=$(lsblk -ndo FSTYPE "$part" | head -n1)
-            uuid=$(blkid -s UUID -o value "$part" 2>/dev/null || echo "-")
-            partuuid=$(blkid -s PARTUUID -o value "$part" 2>/dev/null || echo "-")
-            printf "  %-48s %-13s %-9s %-8s %-36s %-36s\n" "$part" "$label" "$size" "$fstype" "$uuid" "$partuuid"
-          done
+  system.activationScripts."01-generate-storage-map" = ''
+    (
+      echo "# Dynamic Disk Map (auto-generated)"
+      echo "# Device   Label         Size      FSType    UUID                                 PARTUUID"
+      for dev in /dev/sd* /dev/nvme* /dev/disk/by-path/ip-*; do
+        [ -b "$dev" ] || continue
+        label=$(lsblk -ndo LABEL "$dev" | head -n1)
+        size=$(lsblk -ndo SIZE "$dev" | head -n1)
+        fstype=$(lsblk -ndo FSTYPE "$dev" | head -n1)
+        uuid=$(blkid -s UUID -o value "$dev" 2>/dev/null || echo "-")
+        partuuid=$(blkid -s PARTUUID -o value "$dev" 2>/dev/null || echo "-")
+        printf "%-50s %-13s %-9s %-8s %-36s %-36s\n" "$dev" "$label" "$size" "$fstype" "$uuid" "$partuuid"
+        for part in $(lsblk -lnpo NAME "$dev" | tail -n +2); do
+          label=$(lsblk -ndo LABEL "$part" | head -n1)
+          size=$(lsblk -ndo SIZE "$part" | head -n1)
+          fstype=$(lsblk -ndo FSTYPE "$part" | head -n1)
+          uuid=$(blkid -s UUID -o value "$part" 2>/dev/null || echo "-")
+          partuuid=$(blkid -s PARTUUID -o value "$part" 2>/dev/null || echo "-")
+          printf "  %-48s %-13s %-9s %-8s %-36s %-36s\n" "$part" "$label" "$size" "$fstype" "$uuid" "$partuuid"
         done
-      ) > /etc/nixos/storage-map.txt
-    '';
-    interpreter = "${pkgs.bash}/bin/bash";
-  };
+      done
+    ) > /etc/nixos/storage-map.txt
+  '';
 
   # swapDevices = [ { device = "/dev/sda3"; size = "8G"; } ]; # Uncomment to add swap if desired.
 }

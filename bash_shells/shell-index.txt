@@ -1,0 +1,48 @@
+/etc/nixos/bash_shells/shell-index.txt
+======================================
+
+Overview of shell scripts used by NixOS systemd services.
+
+--------------------------------------------------------
+ensure-secrets.sh
+  - Creates/checks secrets & age identity.
+  - Called by: secrets.nix (ensure-secrets service)
+
+check-discworld-disknames.sh
+  - Verifies disk labels match allowed names (safety).
+  - Called by: disk.nix (activation script)
+
+gitops.sh
+  - Handles git versioning & push after rebuilds.
+  - Called by: gitops.nix (activation script)
+
+monitoring-hourly-checks.sh
+  - Triggers ZFS checks, scrubs, SMART tests.
+  - Called by: monitoring.nix (hourlyChecks service)
+
+monitoring-smart-short.sh
+  - Runs SMART short test weekly on ZFS HDDs.
+  - Called by: monitoring.nix (smart-short service)
+
+monitoring-bcachefs-scrub.sh
+  - Scrubs bcachefs weekly.
+  - Called by: monitoring.nix (bcachefs-scrub service)
+
+monitoring-zfs-hdd-scrub.sh
+  - Wakes & scrubs ZFS disks weekly.
+  - Called by: monitoring.nix (zfs-hdd-scrub service)
+
+monitoring-weekly-health.sh
+  - Audits logs, hardware, AV, firewall state.
+  - Called by: monitoring.nix (weeklyHealth service)
+
+monitoring-firewall-check.sh
+  - Logs iptables state at boot/every 50h.
+  - Called by: monitoring.nix (firewall-check service)
+
+monitoring-firewallTest.sh
+  - Checks /30 subnet firewall rules regularly.
+  - Called by: monitoring.nix (firewallTest service)
+
+--------------------------------------------------------
+All scripts are bash, executable, and used by systemd.

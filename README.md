@@ -28,7 +28,7 @@ All of this is very much personal. It is tailored to my setup and what I want (n
         > *Note: NixOS only uses /etc/nixos at build. If you have a preexisting configuration/secrets/etc make sure to back them up beforehand*
    - `git clone https://github.com/AnotherGitHubUsr/NixOS_headless_server.git /etc/nixos`
    - `cd /etc/nixos`
-   - run `nixos-install --flake .#nixserver`.
+   - run `sudo nixos-install --flake .#nixserver`.
 
 4. **GitHub Push:**
    - Upon successful build changes to `/etc/nixos` are pushed automagically to https://github.com/AnotherGitHubUsr/NixOS_headless_server

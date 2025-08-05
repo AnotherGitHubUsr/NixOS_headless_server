@@ -63,7 +63,10 @@ in
     before = [ "agenix.service" ];
     serviceConfig = {
       Type = "oneshot";
-      ExecStart = "${ensureSecretsScript}";
+      # Use bash as the interpreter for the activation script (fixes issues with sh vs bash)
+      interpreter = "${pkgs.bash}/bin/bash";
+      # ExecStart is the literal script (not a path), so interpreter is respected.
+      ExecStart = ensureSecretsScript;
       RemainAfterExit = true;
       User = "root";
     };

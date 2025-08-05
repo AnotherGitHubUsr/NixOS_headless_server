@@ -31,7 +31,7 @@ All of this is very much personal. It is tailored to my setup and what I want (n
    - run `nixos-install --flake .#nixserver`.
 
 4. **GitHub Push:**
-   - Upon successful build changes to `/etc/nixos` are pushed automagically to https://github.com/AnotherGitHubUser/NixOS_headless_server
+   - Upon successful build changes to `/etc/nixos` are pushed automagically to https://github.com/AnotherGitHubUsr/NixOS_headless_server
    - Manual main release bumps, incremental minor releases. If another commit in the last 24h, it's considered a patch.
 
 5. **Disk/Disko**

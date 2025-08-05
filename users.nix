@@ -4,7 +4,7 @@ let
   # Get hashed password from agenix. Generate it: `openssl passwd -6`, encrypt it with agenix.
   nixuserPasswordFile = "/run/agenix/nixuser-password.hash";
   # Try to fetch GitHub SSH keys, fallback to local fallback if unreachable.
-  githubKeyUrl = "https://github.com/AnotherGitHubUser.keys";
+  githubKeyUrl = "https://github.com/AnotherGitHubUsr.keys";
   localFallbackKeys = builtins.readFile ./secrets/nixuser.authorized_keys.fallback;
   fetchGithubKeys = builtins.tryEval (builtins.fetchurl { url = githubKeyUrl; sha256 = null; });
   authorizedKeys = if fetchGithubKeys.success then builtins.readFile fetchGithubKeys.value else localFallbackKeys;

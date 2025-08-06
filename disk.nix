@@ -10,9 +10,9 @@ let
     "Angua"         # /dev/nvme3n1, SSD, bcachefs cache
   ];
   hddDiskNames = [
-    "Detritus"      # /dev/sdb, ZFS only
-    # "Bluejohn"    # /dev/sdc, (optional ZFS future)
-    # "Carborundum" # /dev/sdd, (optional ZFS future)
+    "Detritus"      # /dev/sdb, XFS only (was ZFS)
+    # "Bluejohn"    # /dev/sdc, (optional XFS future, was ZFS)
+    # "Carborundum" # /dev/sdd, (optional XFS future, was ZFS)
   ];
   futureDiskNames = [
     "Glod" "Gaspode" "Dibbler" "Twoflower" "Rincewind"
@@ -26,7 +26,7 @@ let
   allDiscworldDiskNames = ssdDiskNames ++ hddDiskNames ++ futureDiskNames;
 in
 {
-  # --- Disk layout for system and expansion (for Disko v1.x) ---
+  # --- Disk layout for system and expansion ---
   disko = {
     devices = {
       disk = {
@@ -36,10 +36,25 @@ in
           content = {
             type = "gpt";
             partitions = [
-              { name = "boot"; start = "1MiB"; end = "512MiB"; type = "ef00"; } # UEFI boot partition
-              { name = "root"; start = "512MiB"; end = "100%"; type = "8300"; } # System root
-              # Example swap (uncomment & adjust if needed)
-              # { name = "swap"; start = "100% - 16GiB"; end = "100%"; type = "8200"; } # Example swap at disk end
+              {
+                name = "boot";
+                start = "1MiB";
+                end = "512MiB";
+                type = "ef00"; # UEFI boot partition
+              }
+              {
+                name = "root";
+                start = "512MiB";
+                end = "100%";
+                type = "8300"; # System root
+              }
+              # Example new swap partition (commented out, enable as needed)
+              #{
+              #  name = "swap";
+              #  start = "100%";
+              #  end = "120%"; # Adjust size as desired
+              #  type = "8200";
+              #}
             ];
           };
         };
@@ -49,11 +64,16 @@ in
           content = {
             type = "gpt";
             partitions = [
-              { name = "data"; start = "1MiB"; end = "100%"; type = "8300"; } # ZFS data partition
+              {
+                name = "data";
+                start = "1MiB";
+                end = "100%";
+                type = "8300"; # XFS data partition (was ZFS)
+              }
             ];
           };
         };
-        # Future ZFS expansion drives:
+        # Future XFS expansion drives:
         # Bluejohn = { ... };
         # Carborundum = { ... };
         Littlebottom = { device = "/dev/nvme0n1"; type = "disk"; };
@@ -61,28 +81,19 @@ in
         Vimes        = { device = "/dev/nvme2n1"; type = "disk"; };
         Angua        = { device = "/dev/nvme3n1"; type = "disk"; };
       };
-      # --- ZFS pools now go here as `zpool` not `zpools` ---
-      zpool = {
-        hddpool = {
-          # This pool contains the main HDD(s) for ZFS. Add more if/when expanded.
-          devices = [ "/dev/sdb1" ]; # Only Detritus for now (expand this list as needed)
-          options = {
-            version = "2.3.3";
-          };
-          # You can add more ZFS pool options here, e.g. mountpoint, features, etc.
+      # --- XFS mount for "Detritus" (was ZFS pool) ---
+      fs = {
+        detritusData = {
+          type = "xfs";
+          mountpoint = "/mnt/detritus"; # Change as needed
+          device = "/dev/disk/by-partlabel/data";
+          # Extra options (tune as needed):
+          options = [ "noatime" ];
         };
       };
+      # You may add more fs devices for future XFS disks here (Bluejohn, Carborundum, etc.)
     };
   };
-
-  # iSCSI configuration: These devices come from your NAS and must be discovered at boot.
-  # Instructions:
-  #   1. On your NAS, export block devices (LUNs) via iSCSI.
-  #   2. On this host, after `services.open-iscsi` is enabled and running, check device paths with:
-  #        ls -l /dev/disk/by-path/ | grep iscsi
-  #      Example output:
-  #        /dev/disk/by-path/ip-10.250.250.250:iscsi-0-0-0-0-lun-0 -> ../../sdX
-  #   3. Add those device paths to the bcachefs pool below.
 
   # --- iSCSI configuration for NAS block devices ---
   # What this does: Connects at boot, handles multipath and timeouts for reliability.
@@ -189,6 +200,11 @@ in
     ) > /etc/nixos/storage-map.txt
   '';
 
-  # Example swap partition (add in Weatherwax disk "partitions" above, then uncomment here):
-  # swapDevices = [ { device = "/dev/sda3"; size = "16G"; } ];
+  # Example swap partition (commented out, enable if needed)
+  # disko.devices.fs.swap = {
+  #   type = "swap";
+  #   device = "/dev/disk/by-partlabel/swap";
+  #   options = [ "defaults" ];
+  # };
+
 }

@@ -41,12 +41,24 @@ in
                 start = "1MiB";
                 end = "512MiB";
                 type = "ef00"; # UEFI boot partition
+                content = {
+                  type = "filesystem";
+                  format = "vfat";
+                  mountpoint = "/boot";
+                  # add options = [ ... ] if needed
+                };
               }
               {
                 name = "root";
                 start = "512MiB";
                 end = "100%";
-                type = "8300"; # System root
+                type = "8300"; # Linux root
+                content = {
+                  type = "filesystem";
+                  format = "ext4";
+                  mountpoint = "/";
+                  options = [ "noatime" ];
+                };
               }
               # Example new swap partition (commented out, enable as needed)
               #{
@@ -54,6 +66,10 @@ in
               #  start = "100%";
               #  end = "120%"; # Adjust size as desired
               #  type = "8200";
+              #  content = {
+              #    type = "swap";
+              #    randomEncryption = false;
+              #  };
               #}
             ];
           };
@@ -69,11 +85,17 @@ in
                 start = "1MiB";
                 end = "100%";
                 type = "8300"; # XFS data partition (was ZFS)
+                content = {
+                  type = "filesystem";
+                  format = "xfs";
+                  mountpoint = "/mnt/detritus";
+                  options = [ "noatime" ];
+                };
               }
             ];
           };
         };
-        # Future XFS expansion drives:
+        # Future XFS expansion drives (add here as needed):
         # Bluejohn = { ... };
         # Carborundum = { ... };
         Littlebottom = { device = "/dev/nvme0n1"; type = "disk"; };
@@ -81,17 +103,6 @@ in
         Vimes        = { device = "/dev/nvme2n1"; type = "disk"; };
         Angua        = { device = "/dev/nvme3n1"; type = "disk"; };
       };
-      # --- XFS mount for "Detritus" (was ZFS pool) ---
-      fs = {
-        detritusData = {
-          type = "xfs";
-          mountpoint = "/mnt/detritus"; # Change as needed
-          device = "/dev/disk/by-partlabel/data";
-          # Extra options (tune as needed):
-          options = [ "noatime" ];
-        };
-      };
-      # You may add more fs devices for future XFS disks here (Bluejohn, Carborundum, etc.)
     };
   };
 
@@ -201,10 +212,9 @@ in
   '';
 
   # Example swap partition (commented out, enable if needed)
-  # disko.devices.fs.swap = {
-  #   type = "swap";
-  #   device = "/dev/disk/by-partlabel/swap";
-  #   options = [ "defaults" ];
-  # };
+  # Weatherwax disk above: uncomment the partition and this NixOS swap config:
+  # swapDevices = [
+  #   { device = "/dev/disk/by-partlabel/swap"; }
+  # ];
 
 }

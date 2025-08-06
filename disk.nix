@@ -26,7 +26,7 @@ let
   allDiscworldDiskNames = ssdDiskNames ++ hddDiskNames ++ futureDiskNames;
 in
 {
-  # --- Disk layout for system and expansion (Disko syntax) ---
+  # --- Disk layout for system and expansion (for Disko v1.x) ---
   disko = {
     devices = {
       disk = {
@@ -35,23 +35,12 @@ in
           type = "disk";
           content = {
             type = "gpt";
-            partitions = {
-              boot = {  # UEFI boot partition
-                start = "1MiB";
-                end = "512MiB";
-                type = "ef00";
-              };
-              root = {  # System root partition
-                start = "512MiB";
-                end = "100%";
-                type = "8300";
-              };
-              # swap = {                      # Example swap partition (DISABLED: uncomment to enable)
-              #   start = "100% - 8GiB";      # Last 8GiB of disk (adjust size as needed)
-              #   end = "100%";
-              #   type = "8200";              # Linux swap type
-              # };
-            };
+            partitions = [
+              { name = "boot"; start = "1MiB"; end = "512MiB"; type = "ef00"; } # UEFI boot partition
+              { name = "root"; start = "512MiB"; end = "100%"; type = "8300"; } # System root
+              # Example swap (uncomment & adjust if needed)
+              # { name = "swap"; start = "100% - 16GiB"; end = "100%"; type = "8200"; } # Example swap at disk end
+            ];
           };
         };
         Detritus = {
@@ -59,13 +48,9 @@ in
           type = "disk";
           content = {
             type = "gpt";
-            partitions = {
-              data = {  # ZFS data partition
-                start = "1MiB";
-                end = "100%";
-                type = "8300";
-              };
-            };
+            partitions = [
+              { name = "data"; start = "1MiB"; end = "100%"; type = "8300"; } # ZFS data partition
+            ];
           };
         };
         # Future ZFS expansion drives:
@@ -76,18 +61,16 @@ in
         Vimes        = { device = "/dev/nvme2n1"; type = "disk"; };
         Angua        = { device = "/dev/nvme3n1"; type = "disk"; };
       };
-      # (No more zfs here! ZFS moved to disko.zpools)
-    };
-
-    # --- ZFS pool for Detritus (and future expansion) ---
-    zpools = {
-      hddpool = {
-        # Reference the *partition*, not the raw disk (i.e., /dev/sdb1, not /dev/sdb)
-        devices = [ "/dev/sdb1" ]; # Only Detritus (future: expand this list)
-        options = {
-          version = "2.3.3";
+      # --- ZFS pools now go here as `zpool` not `zpools` ---
+      zpool = {
+        hddpool = {
+          # This pool contains the main HDD(s) for ZFS. Add more if/when expanded.
+          devices = [ "/dev/sdb1" ]; # Only Detritus for now (expand this list as needed)
+          options = {
+            version = "2.3.3";
+          };
+          # You can add more ZFS pool options here, e.g. mountpoint, features, etc.
         };
-        # You can add more ZFS pool options here, e.g. mountpoint, features, etc.
       };
     };
   };
@@ -205,4 +188,7 @@ in
       done
     ) > /etc/nixos/storage-map.txt
   '';
+
+  # Example swap partition (add in Weatherwax disk "partitions" above, then uncomment here):
+  # swapDevices = [ { device = "/dev/sda3"; size = "16G"; } ];
 }

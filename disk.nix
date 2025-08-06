@@ -35,7 +35,7 @@
     '';
   };
 
-/*                ! ! !
+/*         *Or maybe not this.*
 | Filesystem | Use this in Disko              |
 | ---------- | ------------------------------ |
 | ext4       | `label = "foo"`                |
@@ -94,7 +94,7 @@
               content = {
                 type = "filesystem";
                 format = "xfs";
-                name = "detritus";        # because xfs doesn't like being labled
+                label = "detritus";        # because xfs doesn't like being labled
                 mountpoint = "/detritus";
               };
             };

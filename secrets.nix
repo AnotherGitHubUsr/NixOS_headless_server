@@ -1,10 +1,18 @@
+# =========================
+# secrets.nix
+# =========================
+# --- SECRETS & AGE MANAGEMENT ---
+# All secrets managed via agenix and systemd. See README for operational notes.
+# Ensures secrets exist (dummy if missing), manages permissions.
+# --------------------------------
+
 { config, pkgs, ... }:
 
 let
-  # Directory containing the secret files
+  # --- SECRETS DIRECTORY AND FILENAMES ---
   secretsDir = ./secrets;
 
-  # List of all secret files to check or create
+  # --- ALL SECRET FILES (AGE ENCRYPTED) ---
   secretFiles = [
     "github-token.age"
     "traefik-auth.age"
@@ -16,7 +24,7 @@ let
   ];
 in
 {
-  # systemd oneshot: Ensures age identity and all secrets exist before agenix/service start
+  # --- SYSTEMD: ENSURE SECRETS EXIST BEFORE AGENIX OR SERVICES ---
   systemd.services.ensure-secrets = {
     description = "Ensure age identity and secret files exist before agenix/services";
     wantedBy = [ "multi-user.target" ];
@@ -32,11 +40,13 @@ in
   # --- USER INSTRUCTIONS ---
   # - Your age keypair is stored as ./secrets/key.txt (private) and ./secrets/public.age (public recipient).
   # - BACK UP key.txt securely. Anyone with this file can decrypt your secrets.
+
   # - To change a secret: echo "newvalue" | age -e -r "$(cat ./secrets/public.age)" -o ./secrets/your-secret.age
+  
   # - To change a password hash: echo "newpassword" | openssl passwd -6 -stdin | age -e -r "$(cat ./secrets/public.age)" -o ./secrets/nixuser-password.hash.age
   # - Remove a .age file and `systemctl start ensure-secrets` to auto-recreate with 'missingpassword' (not recommended except for test/dev).
 
-  # --- DECLARED SECRETS ---
+  # --- DECLARED SECRETS FOR AGENIX ---
   age.secrets.github-token = {
     file = ./secrets/github-token.age;
     mode = "0400";

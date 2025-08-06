@@ -1,121 +1,24 @@
-{ config, pkgs, ... }:
-
-let
-  # --- Disk naming for safety, expansion, and documentation ---
-  ssdDiskNames = [
-    "Weatherwax"    # /dev/sda, system SSD, root
-    "Littlebottom"  # /dev/nvme0n1, SSD, bcachefs cache
-    "Carrot"        # /dev/nvme1n1, SSD, bcachefs cache (also used for metadata/journal)
-    "Vimes"         # /dev/nvme2n1, SSD, bcachefs cache
-    "Angua"         # /dev/nvme3n1, SSD, bcachefs cache
-  ];
-  hddDiskNames = [
-    "Detritus"      # /dev/sdb, XFS only (was ZFS)
-    # "Bluejohn"    # /dev/sdc, (optional future)
-    # "Carborundum" # /dev/sdd, (optional future)
-  ];
-  futureDiskNames = [
-    "Glod" "Gaspode" "Dibbler" "Twoflower" "Rincewind"
-    "Cohen" "Susan" "Luggage" "Teatime" "VonLipwig"
-    "Otto" "William" "Nobby" "Sybil" "Ridcully" "Ponder"
-    "Librarian" "Magrat" "Nanny" "Carborundum" "Bluejohn" "Brick"
-    "Lu-Tze" "Igor" "MrsCake" "Vetinary" "Drumknott"
-    "LadySybil" "AdoraBelle" "Sally" "MissDearheart"
-    "LordVetinary" "Colon" "RobbAnybody" "Cripslock" "DeWorde"
-  ];
-  allDiscworldDiskNames = ssdDiskNames ++ hddDiskNames ++ futureDiskNames;
-in
-{
-  # --- Disk layout for system and expansion ---
-  disko = {
-    devices = {
-      disk = {
-        # System SSD: EFI boot + ext4 root
-        Weatherwax = {
-          device = "/dev/sda";
-          type = "disk";
-          content = {
-            type = "gpt";
-            partitions = {
-              boot = {
-                start = "1MiB";
-                end = "512MiB";
-                type = "ef00";
-                content = {
-                  type = "filesystem";
-                  format = "vfat";
-                  mountpoint = "/boot";
-                };
-              };
-              root = {
-                start = "512MiB";
-                end = "100%";
-                type = "8300";
-                content = {
-                  type = "filesystem";
-                  format = "ext4";
-                  mountpoint = "/";
-                  options = [ "noatime" ];
-                };
-              };
-              # swap = {
-              #   start = "100%";         # <--- Adjust start/end appropriately!
-              #   end = "100%";
-              #   type = "8200";
-              #   content = {
-              #     type = "swap";
-              #     randomEncryption = true;
-              #   };
-              # };
-            };
-          };
-        };
-
-        # HDD for XFS data (was ZFS)
-        Detritus = {
-          device = "/dev/sdb";
-          type = "disk";
-          content = {
-            type = "gpt";
-            partitions = {
-              data = {
-                start = "1MiB";
-                end = "100%";
-                type = "8300";
-                content = {
-                  type = "filesystem";
-                  format = "xfs";
-                  mountpoint = "/mnt/detritus";
-                  # options = [ "noatime" ]; # <--- Not valid for XFS in this version of disko!
-                };
-              };
-            };
-          };
-        };
-
-        # Uncomment for future disks:
-        # Bluejohn = { ... };
-        # Carborundum = { ... };
-
-        Littlebottom = { device = "/dev/nvme0n1"; type = "disk"; };
-        Carrot       = { device = "/dev/nvme1n1"; type = "disk"; };
-        Vimes        = { device = "/dev/nvme2n1"; type = "disk"; };
-        Angua        = { device = "/dev/nvme3n1"; type = "disk"; };
-      };
-    };
-  };
+# =========================
+# disk.nix
+# =========================
+# --- DISK SETUP, PARTITIONS, MOUNTS, SYSTEMD ---
+# Declarative disks with Discworld labels, iSCSI, and bcache/mergerfs/ZFS logic.
+# Also manages all storage-related systemd units and activation scripts.
+# -----------------------------------------------
 
   # iSCSI configuration: These devices come from your NAS and must be discovered at boot.
   # Instructions:
   #   1. On your NAS, export block devices (LUNs) via iSCSI.
-  #   2. On this host, after `services.open-iscsi` is enabled and running, check device paths with:
+  #   2. On this host, after services.open-iscsi is enabled and running, check device paths with:
   #        ls -l /dev/disk/by-path/ | grep iscsi
   #      Example output:
   #        /dev/disk/by-path/ip-10.250.250.250:iscsi-0-0-0-0-lun-0 -> ../../sdX
-  #   3. Add those device paths to the bcachefs pool below.
+  #   3. Add those device paths to the bcachefs pool below
 
-  # --- iSCSI configuration for NAS block devices ---
-  # What this does: Connects at boot, handles multipath and timeouts for reliability.
+{ config, pkgs, ... }:
+
+{
+  # --- ISCSI SETUP ---
   services.open-iscsi = {
     enable = true;
     initiatorName = "iqn.2024-08.nixserver:iscsi";
@@ -132,33 +35,138 @@ in
     '';
   };
 
-  # --- bcachefs media pool ---
-  # What this does: SSDs and iSCSI HDDs form a unified bcachefs pool. Writeback cache set to 200 GiB.
-  # Write cache is flushed to disk daily at 11am, or if >80% full.
-  fileSystems."/mnt/bcachefs" = {
-    # Below, change the name/ip/path to the iSCSI devices as needed
-    device = "/dev/nvme0n1:/dev/nvme1n1:/dev/nvme2n1:/dev/nvme3n1:/dev/disk/by-path/ip-10.250.250.250:iscsi-0-0-0-0-lun-0:/dev/disk/by-path/ip-10.250.250.250:iscsi-0-0-0-1-lun-0";
+  # --- DISKO SPEC: DISK PARTITIONS AND LABELS ---
+  disko.devices = {
+    disk = {
+      weatherwax = {
+        device = "/dev/sda";
+        type = "disk";
+        content = {
+          type = "gpt";
+          partitions = {
+            boot = {
+              start = "1MiB";
+              end = "512MiB";
+              type = "ef00";
+              content = {
+                type = "filesystem";
+                format = "vfat";
+                label = "boot";
+                mountpoint = "/boot";
+              };
+            };
+            root = {
+              start = "512MiB";
+              end = "100%";
+              type = "8300";
+              content = {
+                type = "filesystem";
+                format = "ext4";
+                label = "weatherwax";
+                mountpoint = "/";
+              };
+            };
+          };
+        };
+      };
+      detritus = {
+        device = "/dev/sdb";
+        type = "disk";
+        content = {
+          type = "gpt";
+          partitions = {
+            data = {
+              start = "1MiB";
+              end = "100%";
+              type = "8300";
+              content = {
+                type = "filesystem";
+                format = "xfs";
+                label = "detritus";
+                mountpoint = "/detritus";
+              };
+            };
+            # --- SWAP PARTITION (UNCOMMENT TO ENABLE, but... maybe not on HDD, eh?) ---
+            # swap = {
+            #   start = "100%";
+            #   end = "10824MiB";
+            #   type = "8200";
+            #   content = {
+            #     type = "swap";
+            #     randomEncryption = true;
+            #     label = "swap";
+            #   };
+            # };
+          };
+        };
+      };
+
+      # --- TEMPLATE: ADDITIONAL HDD (EXAMPLE) ---
+      # bluejohn = {
+      #   device = "/dev/sdc";
+      #   type = "disk";
+      #   content = {
+      #     type = "gpt";
+      #     partitions = {
+      #       data = {
+      #         start = "1MiB";
+      #         end = "100%";
+      #         type = "8300";
+      #         content = {
+      #           type = "filesystem";
+      #           format = "xfs";
+      #           label = "bluejohn";
+      #           mountpoint = "/bluejohn";
+      #         };
+      #       };
+      #     };
+      #   };
+      # };
+
+      littlebottom = { device = "/dev/nvme0n1"; type = "disk"; };
+      carrot       = { device = "/dev/nvme1n1"; type = "disk"; };
+      vimes        = { device = "/dev/nvme2n1"; type = "disk"; };
+      angua        = { device = "/dev/nvme3n1"; type = "disk"; };
+    };
+  };
+
+  # --- FILESYSTEMS (LABELS, MOUNTPOINTS, OPTIONS) ---
+  fileSystems."/" = {
+    device = "/dev/disk/by-label/weatherwax";
+    fsType = "ext4";
+    options = [ "noatime" ];
+  };
+
+  fileSystems."/boot" = {
+    device = "/dev/disk/by-label/boot";
+    fsType = "vfat";
+  };
+
+  fileSystems."/detritus" = {
+    device = "/dev/disk/by-label/detritus";
+    fsType = "xfs";
+  };
+
+  # --- BCACHEFS POOL: ALWAYS MOUNTED AT /mnt/watch ---
+  fileSystems."/mnt/watch" = {
+    device = "/dev/disk/by-label/watch";
     fsType = "bcachefs";
     options = [
-      "discard=async"                   # Enable async TRIM for SSDs.
-      "foreground_target=/dev/nvme1n1"  # Use Carrot for metadata/journal for fast recovery.
-      # "background_promote"             # Optionally prefill SSD cache with hot data.
-      "writeback"                       # Enable write cache for performance.
-      "writeback_max_size=214748364800" # Limit writeback cache to 200 GiB.
-      "errors=remount-ro"               # Remount as read-only on error for safety.
-      "recovery_readonly"               # Try mounting read-only after failure.
-      # "compression=zstd"               # Not needed for media files.
-      "readahead=16384"                 # 8 MiB readahead for optimal large file streaming.
+      "discard=async"
+      "foreground_target=/dev/disk/by-label/carrot"
+      "writeback"
+      "errors=remount-ro"
+      "recovery_readonly"
+      "readahead=16384"
     ];
   };
 
-  # --- bcachefs flush automation ---
-  # Flush all cached writes at 11am daily to reduce data loss risk.
+  # --- SYSTEMD: FLUSH BCACHEFS WRITEBACK CACHE DAILY ---
   systemd.services.bcachefs-flush = {
-    description = "Flush bcachefs write cache to disk";
+    description = "Flush bcachefs writeback cache to disk";
     serviceConfig = {
       Type = "oneshot";
-      ExecStart = "${pkgs.bash}/bin/bash /etc/nixos/bash_shells/bcachefs-flush.sh";
+      ExecStart = "/etc/nixos/bash_shells/bcachefs-flush.sh";
     };
   };
   systemd.timers.bcachefs-flush = {
@@ -170,12 +178,12 @@ in
     };
   };
 
-  # Flush if writeback cache is >80% full. Checks every 15 minutes.
+  # --- SYSTEMD: FLUSH BCACHEFS IF USAGE > 150 GiB (EVERY 15 MIN) ---
   systemd.services.bcachefs-flush-threshold = {
-    description = "Flush bcachefs write cache if above 80% full";
+    description = "Flush bcachefs writeback cache if above 150 GiB";
     serviceConfig = {
       Type = "oneshot";
-      ExecStart = "${pkgs.bash}/bin/bash /etc/nixos/bash_shells/bcachefs-flush-threshold.sh";
+      ExecStart = "/etc/nixos/bash_shells/bcachefs-flush-threshold.sh";
     };
   };
   systemd.timers.bcachefs-flush-threshold = {
@@ -187,14 +195,25 @@ in
     };
   };
 
-  # --- Discworld disk name enforcement for disko safety ---
-  # What this does: Prevents accidental formatting of disks without Discworld names.
-  system.activationScripts."00-check-discworld-disknames" = ''
-    ${pkgs.bash}/bin/bash /etc/nixos/bash_shells/check-discworld-disknames.sh
-  '';
+  # --- SYSTEMD: UPDATE DISCWORLD NAMES (DISK LABELS) EVERY NIGHT ---
+  systemd.services.update-discworld-names = {
+    description = "Update discworld-names.nix according to current disk state";
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "/etc/nixos/update-discworld-names.sh";
+    };
+  };
+  systemd.timers.update-discworld-names = {
+    enable = true;
+    timerConfig = {
+      OnCalendar = "03:00";
+      Persistent = true;
+      Unit = "update-discworld-names.service";
+    };
+  };
 
-  # --- Storage map generation for operator visibility ---
-  # What this does: Documents device, label, size, FS, UUIDs/partuuids for all known block devices.
+  # --- STORAGE MAP GENERATION (AUTO-GENERATED DOCUMENTATION) ---
+  # Documents all block devices, labels, sizes, UUIDs.
   system.activationScripts."01-generate-storage-map" = ''
     (
       echo "# Dynamic Disk Map (auto-generated)"
@@ -218,17 +237,4 @@ in
       done
     ) > /etc/nixos/storage-map.txt
   '';
-
-  # --- Swap example (commented out) ---
-  # To enable swap, add a new partition in the desired disk's `partitions` set above:
-  # swap = {
-  #   start = "512MiB";
-  #   end = "2.5GiB";  # Adjust as needed
-  #   type = "8200";
-  #   content = {
-  #     type = "swap";
-  #     randomEncryption = true;
-  #   };
-  # };
-
 }

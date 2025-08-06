@@ -1,11 +1,20 @@
 #!/usr/bin/env bash
+# =============================================
 # gitops.sh
-# Handles git versioning, commit, and push for NixOS config with GitHub token from agenix.
+# =============================================
+# --- GIT VERSIONING, COMMIT, PUSH FOR NIXOS ---
+# Called by: configuration.nix (activation script)
+# Handles GitHub auth (from agenix), auto-versioning, push logic.
+# ----------------------------------------------
 
-set -e
+set -euo pipefail
+
+# --- ENVIRONMENT/PATH ---
+export PATH="/run/wrappers/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH}"
+export PATH="${PATH}:/run/current-system/sw/bin"
+
 cd /etc/nixos
 
-# Use trap to always delete the credentials file on exit or error
 trap 'rm -f /root/.git-credentials' EXIT
 
 # 1. Use agenix secret for GitHub token
@@ -26,7 +35,8 @@ fi
 
 IFS=. read -r last_main last_minor last_patch <<< "$last_version"
 
-mainRelease="0"  # must match mainRelease in gitops.nix!
+  # Uses "mainRelease" as written in configuration.nix
+mainRelease=$(sed -nE 's/^\s*mainRelease\s*=\s*"([^"]*)";/\1/p' /etc/nixos/configuration.nix)
 if [ "$last_main" != "${mainRelease}" ]; then
   minor=0
   patch=0

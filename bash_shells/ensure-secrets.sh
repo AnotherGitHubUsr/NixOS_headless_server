@@ -1,10 +1,17 @@
 #!/usr/bin/env bash
-# ensure-secrets.sh: Ensures age identity exists and all agenix secrets are present.
-# - Creates a new age identity (key.txt, public.age) if missing.
-# - Ensures all expected secret files exist, creating with a dummy value if needed.
-# - Should be called from a systemd service as root before agenix and all other secret-dependent services.
+# =============================================
+# ensure-secrets.sh
+# =============================================
+# --- ENSURE AGE SECRETS & IDENTITY EXIST ---
+# - Ensures age identity and all agenix secrets are present (creates dummy if missing)
+# - Called by: secrets.nix (ensure-secrets systemd service)
+# --------------------------------------------
 
 set -euo pipefail
+
+# --- ENVIRONMENT/PATH ---
+export PATH="/run/wrappers/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH}"
+export PATH="${PATH}:/run/current-system/sw/bin"
 
 # --- CONFIGURABLE PATHS ---
 SECRETS_DIR="/etc/nixos/secrets"
@@ -32,7 +39,7 @@ if [[ ! -f "$AGE_KEY_FILE" && ! -f "$AGE_RECIPIENT_FILE" ]]; then
   echo "A new age identity was generated. BACK UP $AGE_KEY_FILE securely! Anyone with $AGE_KEY_FILE can decrypt your secrets."
 fi
 
-# --- PREFER PRIVATE KEY IF IT EXISTS, OTHERWISE USE PUBLIC RECIPIENT ---
+# --- USE PRIVATE KEY IF EXISTS, ELSE PUBLIC RECIPIENT ---
 if [[ -f "$AGE_KEY_FILE" ]]; then
   AGE_RECIPIENT_OPT="-i $AGE_KEY_FILE"
 else
@@ -45,7 +52,6 @@ for f in "${SECRET_FILES[@]}"; do
   if [[ ! -f "$secret_path" ]]; then
     echo "Secret $secret_path missing, creating with dummy value 'missingpassword'"
     if [[ "$f" == *hash* ]]; then
-      # If this is a password hash, hash the dummy password before encrypting
       hashed=$(openssl passwd -6 "missingpassword")
       echo "$hashed" | age -e $AGE_RECIPIENT_OPT -o "$secret_path"
     else

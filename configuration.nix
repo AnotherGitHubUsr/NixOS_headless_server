@@ -1,8 +1,15 @@
-# Imports all .nix files. For detailed comments: index.txt
+# =========================
+# configuration.nix
+# =========================
+# --- SYSTEM CONFIGURATION ENTRYPOINT ---
+# Imports all modular .nix configs. For module description see index.txt.
+# Also adds core activation scripts (fix-perms, gitops).
+# ---------------------------------------
 
-{ config, pkgs, ... }:
+{ config, pkgs, pkgsUnstable, agenix, ... }:
 
 {
+  # --- MODULE IMPORTS ---
   imports = [
     ./users.nix
     ./disk.nix
@@ -10,14 +17,22 @@
     ./network.nix
     ./security.nix
     ./monitoring.nix
-    ./gitops.nix
     ./secrets.nix
     ./kernel.nix
+    ./discworld-names.nix
   ];
-  
-  # Ensures correct permissions on shell scripts before systemd and other services rely on them.
+
+  # --- SHELL SCRIPT PERMISSIONS FIX (run early!) ---
   system.activationScripts."00-fix-bash-shell-perms" = ''
     #!/usr/bin/env bash
     /etc/nixos/bash_shells/fix-shell-permissions.sh
   '';
+
+  # --- GITOPS: AUTOCOMMIT AND PUSH (was gitops.nix, now inline) ---
+  # After every rebuild, auto-commit and push config changes to GitHub with version bumping.
+  system.activationScripts.gitops = ''
+    ${pkgs.bash}/bin/bash /etc/nixos/bash_shells/gitops.sh
+  '';
+
+  mainRelease = "0";    # Sets mainRelease version as used in gitops.sh
 }

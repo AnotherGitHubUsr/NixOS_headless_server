@@ -1,17 +1,24 @@
+# =========================================
+# flake.nix
+# =========================================
+# --- ENTRYPOINT FLAKE FOR NIXOS HEADLESS SERVER ---
+# Provides all system, version, and module pins for reproducibility.
+# Uses both stable and unstable Nixpkgs, disko for partitioning, agenix for secrets.
+# --------------------------------------------------
+
 {
   description = "Flake for NixOS headless server (with disko, agenix, stable/unstable pkgs)";
 
-  # --- Inputs: Repos/Flakes this flake depends on ---
+  # --- Flake Inputs: Define all source channels and tools
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";          # Stable channel for system/core packages
-    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable"; # Unstable channel for opt-in bleeding edge pkgs
-    disko.url = "github:nix-community/disko";                  # Declarative partitioning
-    agenix.url = "github:ryantm/agenix";                       # Encrypted secrets mgmt
-    flake-utils.url = "github:numtide/flake-utils";            # Utility helpers for multi-system output
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";                 # Stable channel for system/core packages
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";     # Unstable channel for opt-in bleeding edge pkgs
+    disko.url = "github:nix-community/disko";                         # Declarative partitioning (Disko module)
+    agenix.url = "github:ryantm/agenix";                              # Encrypted secrets management (agenix)
+    flake-utils.url = "github:numtide/flake-utils";                   # Utility helpers for multi-system output
   };
 
-
-  # This exposes nixosConfigurations.nixserver at the top level of outputs.
+  # --- Outputs: Build the configuration set
   outputs = { self, nixpkgs, nixpkgs-unstable, disko, agenix, ... }: {
     nixosConfigurations = {
       nixserver = nixpkgs.lib.nixosSystem {
@@ -22,15 +29,11 @@
           agenix = agenix;
         };
         modules = [
-          ./configuration.nix
-          disko.nixosModules.disko
-          agenix.nixosModules.default
-          # add more...
+          ./configuration.nix          # Main config imports (all modular .nix)
+          disko.nixosModules.disko     # Disko module (partition layout)
+          agenix.nixosModules.default  # Age/agenix secrets module
         ];
       };
     };
   };
-
-
 }
-

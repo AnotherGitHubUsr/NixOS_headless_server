@@ -1,9 +1,17 @@
+# =========================
+# pkgs.nix
+# =========================
+# --- PACKAGE MANAGEMENT, SERVICES, HARDWARE SUPPORT ---
+# Sets system packages (stable/unstable), hardware, drivers, flatpak, docker, incus, and tailscale.
+# -----------------------------------------------------
+
 { config, pkgs, pkgsUnstable, ... }:
 
 {
-  # --- Package channels setup ---
+  # --- NIX PATH CHANNELS (FOR SHELLS/LEGACY) ---
   nix.nixPath = [ "nixpkgs=${pkgs.path}" "nixos-unstable=${pkgsUnstable.path}" ];
 
+  # --- CORE SYSTEM PACKAGES ---
   environment.systemPackages = with pkgs; [
     vim         # Editor (stable)
     wget        # Downloader
@@ -28,21 +36,18 @@
     # Flatpak Wine, see below.
   ];
 
-  # --- Example for using unstable ---
+  # --- UNSTABLE PACKAGE USAGE EXAMPLE ---
   # environment.systemPackages = with pkgsUnstable; [
   #   vim # Uncomment to use unstable vim, if you want latest features.
   # ];
 
-  # --- Tailscale setup ---
-  # What this does: Enables Tailscale VPN with an auth key managed via agenix.
-  # The secret for the key must be set in secrets.nix and made available as `config.age.secrets.tailscaleAuthKey.path`.
-  # Accepts routes for subnet routing, which can be customized as needed.
+  # --- TAILSCALE VPN SETUP ---
   services.tailscale = {
     enable = true;
-    useRoutingFeatures = "both"; # Accept and advertise routes (change to "client", "server", or "none" as needed)
+    useRoutingFeatures = "accept"; # Accept and ~advertise~ (both) routes (change as needed)
     extraUpFlags = [
-      "--authkey" "@${config.age.secrets.tailscaleAuthKey.path}"  # Use agenix-managed authkey
-      "--accept-routes"                   # Accept routes from other nodes
+      "--authkey" "@${config.age.secrets.tailscaleAuthKey.path}"
+      "--accept-routes"
       "--hostname=nixserver"
       "--timeout=120s"
       "--ssh"
@@ -50,20 +55,19 @@
     ];
   };
 
-
-  # --- Flatpak and Wine setup ---
+  # --- FLATPAK & WINE SETUP ---
   services.flatpak.enable = true;
   environment.variables.FLATPAK_ENABLE = "1";
   services.flatpak.extraRemotes = [
     { name = "flathub"; url = "https://flathub.org/repo/flathub.flatpakrepo"; }
   ];
 
-  # --- Hardware support (Ryzen & Radeon) ---
+  # --- HARDWARE (AMD RYZEN & RADEON) ---
   hardware.cpu.amd.updateMicrocode = true;
   hardware.opengl.extraPackages = with pkgs; [ amdvlk ];
   services.firmware.linux-firmware.enable = true;
 
-  # --- Docker/Incus network bridges & storage driver ---
+  # --- DOCKER/INCUS NETWORK BRIDGES & STORAGE ---
   virtualisation.docker.enable = true;
   virtualisation.docker.daemon.settings = {
     bridge = "docker0";

@@ -1,17 +1,22 @@
+# =========================
+# kernel.nix
+# =========================
+# --- KERNEL VERSION, MODULES, PARAMETERS ---
+# Pin kernel version for stability, enable extra modules, and set boot flags for storage and virtualization.
+# -------------------------------------------
+
 { pkgs, ... }: 
 
 {
-  # --- Kernel selection ---
-  # Pin to kernel 6.12 for stability. Rationale: Avoids breakage from newer, untested kernels.
+  # --- KERNEL SELECTION ---
+  # Pin to kernel 6.12 for stability (tested with ZFS 2.3.3 and bcache).
   boot.kernelPackages = pkgs.linuxPackages_6_12;
 
   # To use the latest available kernel (may break ZFS, bcache, bcachefs):
   # boot.kernelPackages = pkgs.linuxPackages_latest;
 
-  # --- Kernel Modules ---
-  # Add ZFS and block-level bcache support.
-  # openzfs_2_3_3 is a recommended stable version.
-  # bcache is the original block-device cache layer.
+  # --- KERNEL MODULES ---
+  # Add ZFS and block-level bcache/bcachefs support. (for the situation when bcachefs is dropped from the Kernel)
   boot.extraModulePackages = with pkgs.linuxPackages_6_12; [
     openzfs_2_3_3
     # bcache
@@ -21,17 +26,17 @@
     # bcachefs               # Generic bcachefs module, if defined in your Nixpkgs channel.
   ];
 
-  # --- Kernel parameters ---
+  # --- KERNEL PARAMETERS ---
   # Custom flags for storage and virtualization.
   boot.kernelParams = [
     "zfs.force=1"                  # Allows ZFS to run on newer/unsupported kernels.
-    "bcache.allow_across_disks=1"  # bcache: allow one SSD to cache multiple HDDs.
+    #"bcache.allow_across_disks=1"  # bcache: allow one SSD to cache multiple HDDs. (for block level bcache)
     "amd_iommu=on"                 # Enables AMD IOMMU (for PCI passthrough, VMs).
     "iommu=pt"                     # Pass-through mode for IOMMU (performance).
     # Add other kernel params here.
   ];
 
-  # --- Notes ---
+  # --- NOTES ---
   # - Only use both bcache and bcachefs if testing/migrating between them.
   # - For experimental/unstable modules, be sure to test on non-critical systems first.
   # - If your Nixpkgs channel does not have a recent bcachefs module,

@@ -1,15 +1,24 @@
+# =========================
+# users.nix
+# =========================
+# --- USER ACCOUNTS, SUDO, SHELL, AUTH KEYS, PASSWORDS ---
+# User and SSH setup. Password from agenix, fallback pubkey.
+# ---------------------------------------------------------
+
 { config, pkgs, agenix, ... }:
 
 let
-  # Get hashed password from agenix. Generate it: `openssl passwd -6`, encrypt it with agenix.
+  # --- GET HASHED PASSWORD FROM AGENIX ---
   nixuserPasswordFile = "/run/agenix/nixuser-password.hash";
-  # Try to fetch GitHub SSH keys, fallback to local fallback if unreachable.
+
+  # --- GITHUB SSH KEYS WITH FALLBACK ---
   githubKeyUrl = "https://github.com/AnotherGitHubUsr.keys";
   localFallbackKeys = builtins.readFile ./secrets/nixuser.authorized_keys.fallback;
   fetchGithubKeys = builtins.tryEval (builtins.fetchurl { url = githubKeyUrl; sha256 = null; });
   authorizedKeys = if fetchGithubKeys.success then builtins.readFile fetchGithubKeys.value else localFallbackKeys;
 in
 {
+  # --- MAIN USER ---
   users.users.nixuser = {
     isNormalUser = true;
     description = "main server user";
@@ -24,5 +33,6 @@ in
   # If nushell causes trouble, switch to bash by uncommenting:
   # users.users.nixuser.shell = pkgs.bash;
 
-  users.users.root.hashedPassword = "*"; # Root login disabled.
+  # --- DISABLE ROOT LOGIN ---
+  users.users.root.hashedPassword = "*";
 }

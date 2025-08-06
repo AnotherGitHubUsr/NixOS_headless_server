@@ -1,48 +1,49 @@
 /etc/nixos/bash_shells/shell-index.txt
 ======================================
 
-Overview of shell scripts used by NixOS systemd services.
+Overview of shell scripts used by NixOS systemd services and maintenance.
 
 --------------------------------------------------------
+bcachefs-flush-threshold.sh
+  - Flush bcachefs writeback cache if usage exceeds 150 GiB.
+  - Called by: disk.nix (services.bcachefs-flush-threshold)
+
+bcachefs-flush.sh
+  - Flushes all dirty writeback cache for the bcachefs pool to persistent storage.
+  - Called by: disk.nix (services.bcachefs-flush)
+
 ensure-secrets.sh
   - Creates/checks secrets & age identity.
-  - Called by: secrets.nix (ensure-secrets service)
+  - Called by: secrets.nix (ensure-secrets systemd service)
 
-check-discworld-disknames.sh
-  - Verifies disk labels match allowed names (safety).
-  - Called by: disk.nix (activation script)
+fix-shell-permissions.sh
+  - Fixes permissions for all shell scripts.
+  - Called by: configuration.nix (activation script)
 
 gitops.sh
-  - Handles git versioning & push after rebuilds.
-  - Called by: gitops.nix (activation script)
+  - Handles git versioning & push after rebuilds, extracts mainRelease from configuration.nix.
+  - Called by: configuration.nix (activation script)
 
-monitoring-hourly-checks.sh
-  - Triggers ZFS checks, scrubs, SMART tests.
-  - Called by: monitoring.nix (hourlyChecks service)
+monitoring-monday-smart.sh
+  - Every Monday 10:30: wakes all drives, runs SMART short, logs to detritus, runs targeted clamav scan.
+  - Called by: monitoring.nix (smart-monday-all timer/service)
 
-monitoring-smart-short.sh
-  - Runs SMART short test weekly on ZFS HDDs.
-  - Called by: monitoring.nix (smart-short service)
+monitoring-onhours-check.sh
+  - Tracks weatherwax (root SSD) on-hours since setup.
+  - Triggers 950h and 2000h actions (fsck/scrub/clamav/smart).
+  - Called by: monitoring.nix (weatherwax-onhours-check timer/service)
 
-monitoring-bcachefs-scrub.sh
-  - Scrubs bcachefs weekly.
-  - Called by: monitoring.nix (bcachefs-scrub service)
+monitoring-periodic-8h.sh
+  - Every 8h: wakes up detritus, updates AV/crowdsec, logs smart/sensors/journal/firewall/logsize.
+  - Called by: monitoring.nix (periodic-health-logs timer/service)
 
-monitoring-zfs-hdd-scrub.sh
-  - Wakes & scrubs ZFS disks weekly.
-  - Called by: monitoring.nix (zfs-hdd-scrub service)
+pre-disko-sanity.sh
+  - Verifies disk label assignment consistency before running disko.
+  - Run manually or as a wrapper before disk changes.
 
-monitoring-weekly-health.sh
-  - Audits logs, hardware, AV, firewall state.
-  - Called by: monitoring.nix (weeklyHealth service)
-
-monitoring-firewall-check.sh
-  - Logs iptables state at boot/every 50h.
-  - Called by: monitoring.nix (firewall-check service)
-
-monitoring-firewallTest.sh
-  - Checks /30 subnet firewall rules regularly.
-  - Called by: monitoring.nix (firewallTest service)
+update-discworld-names.sh
+  - Updates discworld-names.nix to reflect current disk label state.
+  - Called by: disk.nix (systemd.services.update-discworld-names)
 
 --------------------------------------------------------
-All scripts are bash, executable, and used by systemd.
+All scripts are bash, executable, and called by systemd or as pre-install tools.

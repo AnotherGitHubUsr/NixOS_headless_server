@@ -1,17 +1,18 @@
 index.txt
 ---------
-- flake.nix:            Entry, version pin, imports, all channels, system/inputs locked.
-- README.md:            Setup, install, recovery, agenix, Docker/Incus, tokens, recovery, NAS, secret rotation.
-- .gitignore:           Block plaintext secrets/keys, enforce best practices.
 - .gitattributes:       filter=crypt for secrets/credentials/keys.
-- configuration.nix:    Imports all modular configs below.
-- users.nix:            User, SSH, agenix password, fallback pubkey, sudo, shell setup, instructions for switching shells, password management.
-- disk.nix:             Disk (disko), Pratchett names, mergerfs, ZFS, bcache, iscsi, future disks commented, storage docs.
-- pkgs.nix:             Package set, stable/unstable, hardware drivers, flatpak/wine, docker/incus, comments.
-- network.nix:          Hostname, timezone, NTS NTP, enp4s0, static IP, DNS, subnet, bridges.
-- security.nix:         agenix, crowdsec, fail2ban, clamav, iptables, docker/incus/firewall.
-- monitoring.nix:       SMART/fsck/scrub/AV/log check timers/services, log location, gotify/telegram (commented).
-- gitops.nix:           /etc/nixos GitHub push, agenix token, safe conflict handling.
-- secrets.nix:          All secret token handling for external services, with instructions for users.
-- kernel.nix:           Kernel version, module pinning, hardware flags; easily switch between stable and latest kernels.
+- .gitignore:           Exclude plaintext secrets/keys and build artifacts.
+- bash_shells/:         All shell scripts for systemd, health, and install actions (see shell-index.txt).
+- configuration.nix:    Imports all modular configs below. Exports mainRelease for scripts.
+- discworld-names.nix:  Disc label registry (Discworld character names, "used"/"unused" state).
+- disk.nix:             Disk (disko), device labeling, Pratchett names, bcachefs, mergerfs, zfs, iscsi, storage docs.
+- flake.nix:            Entrypoint, version/channel pins, all modular imports.
+- kernel.nix:           Kernel version, module pinning, hardware flags; easily switch between stable and latest.
+- monitoring.nix:       Hourly/8-hour/Monday timers for smart/scrub/fsck/AV/logs, on-hours tracking, health.
+- network.nix:          Hostname, timezone, ntp, interfaces, bridges, NAS /30 subnet.
+- pkgs.nix:             Package set, stable/unstable, hardware drivers, docker/incus, flatpak, tailscale, comments.
+- README.md:            Setup, install, secrets, disk/NAS, AV, monitoring, recovery, mainRelease.
+- secrets.nix:          All declared secrets for external services, with user/operator instructions.
 - secrets/, credentials/, keys/:    Strictly encrypted, never in repo, only via agenix.
+- security.nix:         agenix, crowdsec, fail2ban, clamav, iptables, docker/incus/firewall.
+- users.nix:            User, SSH, agenix password, fallback pubkey, sudo, shell, password management.

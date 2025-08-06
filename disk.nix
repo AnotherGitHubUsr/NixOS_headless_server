@@ -26,7 +26,7 @@ let
   allDiscworldDiskNames = ssdDiskNames ++ hddDiskNames ++ futureDiskNames;
 in
 {
-  # --- Disk layout for system and expansion ---
+  # --- Disk layout for system and expansion (Disko syntax) ---
   disko = {
     devices = {
       disk = {
@@ -35,10 +35,23 @@ in
           type = "disk";
           content = {
             type = "gpt";
-            partitions = [
-              { name = "boot"; start = "1MiB"; end = "512MiB"; type = "ef00"; } # UEFI boot partition
-              { name = "root"; start = "512MiB"; end = "100%"; type = "8300"; } # System root
-            ];
+            partitions = {
+              boot = {  # UEFI boot partition
+                start = "1MiB";
+                end = "512MiB";
+                type = "ef00";
+              };
+              root = {  # System root partition
+                start = "512MiB";
+                end = "100%";
+                type = "8300";
+              };
+              # swap = {                      # Example swap partition (DISABLED: uncomment to enable)
+              #   start = "100% - 8GiB";      # Last 8GiB of disk (adjust size as needed)
+              #   end = "100%";
+              #   type = "8200";              # Linux swap type
+              # };
+            };
           };
         };
         Detritus = {
@@ -46,9 +59,13 @@ in
           type = "disk";
           content = {
             type = "gpt";
-            partitions = [
-              { name = "data"; start = "1MiB"; end = "100%"; type = "8300"; } # ZFS data partition
-            ];
+            partitions = {
+              data = {  # ZFS data partition
+                start = "1MiB";
+                end = "100%";
+                type = "8300";
+              };
+            };
           };
         };
         # Future ZFS expansion drives:
@@ -65,6 +82,7 @@ in
     # --- ZFS pool for Detritus (and future expansion) ---
     zpools = {
       hddpool = {
+        # Reference the *partition*, not the raw disk (i.e., /dev/sdb1, not /dev/sdb)
         devices = [ "/dev/sdb1" ]; # Only Detritus (future: expand this list)
         options = {
           version = "2.3.3";
@@ -187,6 +205,4 @@ in
       done
     ) > /etc/nixos/storage-map.txt
   '';
-
-  # swapDevices = [ { device = "/dev/sda3"; size = "8G"; } ]; # Uncomment to add swap if desired.
 }

@@ -35,6 +35,18 @@
     '';
   };
 
+/*                ! ! !
+| Filesystem | Use this in Disko              |
+| ---------- | ------------------------------ |
+| ext4       | `label = "foo"`                |
+| btrfs      | `label = "foo"`                |
+| vfat       | `label = "foo"`                |
+| xfs        | `name = "foo"`                 |
+| zfs        | pool/dataset names (not label) |
+| bcachefs   | manual labeling (for now)      |*/
+
+
+
   # --- DISKO SPEC: DISK PARTITIONS AND LABELS ---
   disko.devices = {
     disk = {
@@ -82,7 +94,7 @@
               content = {
                 type = "filesystem";
                 format = "xfs";
-                label = "detritus";
+                name = "detritus";        # because xfs doesn't like being labled
                 mountpoint = "/detritus";
               };
             };

@@ -86,7 +86,7 @@ in
                   type = "filesystem";
                   format = "xfs";
                   mountpoint = "/mnt/detritus";
-                  options = [ "noatime" ];
+                  # options = [ "noatime" ]; # <--- Not valid for XFS in this version of disko!
                 };
               };
             };
@@ -102,7 +102,6 @@ in
         Vimes        = { device = "/dev/nvme2n1"; type = "disk"; };
         Angua        = { device = "/dev/nvme3n1"; type = "disk"; };
       };
-      # (No zfs/zpool config! Only pure block device + partition map here.)
     };
   };
 

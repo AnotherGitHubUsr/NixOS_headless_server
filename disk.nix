@@ -27,42 +27,50 @@ let
 in
 {
   # --- Disk layout for system and expansion ---
-  disko.devices = {
-    disk = {
-      Weatherwax = {
-        device = "/dev/sda";
-        type = "disk";
-        content = {
-          type = "gpt";
-          partitions = [
-            { name = "boot"; start = "1MiB"; end = "512MiB"; type = "ef00"; } # UEFI boot partition
-            { name = "root"; start = "512MiB"; end = "100%"; type = "8300"; } # System root
-          ];
+  disko = {
+    devices = {
+      disk = {
+        Weatherwax = {
+          device = "/dev/sda";
+          type = "disk";
+          content = {
+            type = "gpt";
+            partitions = [
+              { name = "boot"; start = "1MiB"; end = "512MiB"; type = "ef00"; } # UEFI boot partition
+              { name = "root"; start = "512MiB"; end = "100%"; type = "8300"; } # System root
+            ];
+          };
         };
-      };
-      Detritus = {
-        device = "/dev/sdb";
-        type = "disk";
-        content = {
-          type = "gpt";
-          partitions = [
-            { name = "data"; start = "1MiB"; end = "100%"; type = "8300"; } # ZFS data partition
-          ];
+        Detritus = {
+          device = "/dev/sdb";
+          type = "disk";
+          content = {
+            type = "gpt";
+            partitions = [
+              { name = "data"; start = "1MiB"; end = "100%"; type = "8300"; } # ZFS data partition
+            ];
+          };
         };
+        # Future ZFS expansion drives:
+        # Bluejohn = { ... };
+        # Carborundum = { ... };
+        Littlebottom = { device = "/dev/nvme0n1"; type = "disk"; };
+        Carrot       = { device = "/dev/nvme1n1"; type = "disk"; };
+        Vimes        = { device = "/dev/nvme2n1"; type = "disk"; };
+        Angua        = { device = "/dev/nvme3n1"; type = "disk"; };
       };
-      # Future ZFS expansion drives:
-      # Bluejohn = { ... };
-      # Carborundum = { ... };
-      Littlebottom = { device = "/dev/nvme0n1"; type = "disk"; };
-      Carrot       = { device = "/dev/nvme1n1"; type = "disk"; };
-      Vimes        = { device = "/dev/nvme2n1"; type = "disk"; };
-      Angua        = { device = "/dev/nvme3n1"; type = "disk"; };
+      # (No more zfs here! ZFS moved to disko.zpools)
     };
-    zfs = {
-      pools = {
-        hddpool = { devices = [ "/dev/sdb1" ]; }; # Only Detritus (future: expand this list)
+
+    # --- ZFS pool for Detritus (and future expansion) ---
+    zpools = {
+      hddpool = {
+        devices = [ "/dev/sdb1" ]; # Only Detritus (future: expand this list)
+        options = {
+          version = "2.3.3";
+        };
+        # You can add more ZFS pool options here, e.g. mountpoint, features, etc.
       };
-      options = { version = "2.3.3"; };
     };
   };
 
